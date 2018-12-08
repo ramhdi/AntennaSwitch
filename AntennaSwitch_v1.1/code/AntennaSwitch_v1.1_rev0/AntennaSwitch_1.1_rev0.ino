@@ -28,6 +28,8 @@ void loop()
 
 }
 
+void ParseHeading();
+
 MAVHeading_t TrackerHeading(MAVCoordinate_t mavpos, MAVCoordinate_t trackerpos, MAVHeading_t mavheading)
 {
   // delta x and y

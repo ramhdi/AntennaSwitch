@@ -45,7 +45,7 @@ MAVHeading_t TrackerHeading(MAVCoordinate_t mavpos, MAVCoordinate_t trackerpos, 
 // bool controlSwitch(MAVHeading_t th)
 // method untuk mengatur keluaran switch berdasarkan heading home
 // relatif terhadap uav
-bool controlSwitch(MAVHeading_t th)
+bool ControlSwitch(MAVHeading_t th)
 {
   if (th > 0 && th <= 180) return 0;
   else return 1;
@@ -53,55 +53,98 @@ bool controlSwitch(MAVHeading_t th)
 
 // void handle_message(mavlink_message_t, mavlink_status_t)
 // method untuk menghandle message dari pixhawk
-void handle_message(mavlink_message_t *msg, mavlink_status_t *status, MAVCoordinate_t* _uavpos, MAVCoordinate_t* _trackerpos)
+void handle_message(mavlink_message_t *msg, mavlink_status_t *status, MAVCoordinate_t* _uavpos, MAVCoordinate_t* _trackerpos, MAVHeading_t* _mavheading)
 {
   // switch kondisi dari message id
   switch (msg->msgid)
   {
     // msgid = posisi gps raw/mentah
-    case MAVLINK_MSG_ID_GPS_RAW_INT:
-      // decode isi msg menjadi isi data gps
-      mavlink_gps_raw_int_t gps_raw;
-      mavlink_msg_gps_raw_int_decode(msg, &gps_raw);
-      
-      // jika 2d atau 3d fixed
-      if (gps_raw.fix_type > 1) {
-        // jml satelit
-        Serial.print(F("Sat: "));
-        Serial.println(gps_raw.satellites_visible);
+    case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:
+        // decode isi msg menjadi isi data gps
+        mavlink_global_position_int_t filtered_uav_pos;
+        mavlink_msg_gps_raw_int_decode(msg, &filtered_uav_pos);
         
-        // HDOP
-        Serial.print(F("HDOP: "));
-        Serial.print(gps_raw.eph);
-        Serial.println(F(" cm "));
+        // assign ke uavpos
+        _uavpos->lat = filtered_uav_pos.lat;
+        _uavpos->lon = filtered_uav_pos.lon;
+        *_mavheading = filtered_uav_pos.hdg;
 
-        // 2d atau 3d fixed
-        if (gps_raw.fix_type == 2)
-          Serial.println(F("2D"));
-        if (gps_raw.fix_type == 3)
-        Serial.println(F("3D"));
-      } else {
-        // tidak dapat sinyal gps
-        Serial.println(F("No GPS fix"));
-      }
-      delay(1000);
+        // menuliskan lat dan lon
+        Serial.print(F("UAV Lat: "));
+        Serial.println(filtered_uav_pos.lat);
 
-      // assign ke uavpos
-      _uavpos->lat = gps_raw.lat;
-      _uavpos->lon = gps_raw.lon;
+        Serial.print(F("UAV Lon: "));
+        Serial.println(filtered_uav_pos.lon);
 
-      // menuliskan lat dan lon
-      Serial.print(F("Lat: "));
-      Serial.println(gps_raw.lat);
+        Serial.print(F("UAV Hdg: "));
+        Serial.println(filtered_uav_pos.hdg);
+        delay(1000);
 
-      Serial.print(F("Lon: "));
-      Serial.println(gps_raw.lon);
-      delay(1000);
+        break;
+    
+    case MAVLINK_MSG_ID_HOME_POSITION:
+        // decode isi msg menjadi isi data gps
+        mavlink_home_position_t home_pos;
+        mavlink_msg_home_position_decode(msg, &home_pos);
 
-      break;
+        _trackerpos->lat = home_pos.latitude;
+        _trackerpos->lon = home_pos.longitude;
+
+        Serial.print(F("Home Lat: "));
+        Serial.println(home_pos.latitude);
+        
+        Serial.print(F("Home Lon: "));
+        Serial.println(home_pos.longitude);
+        delay(1000);
+
+        break;
 
     default:
-      // tidak ada pesan
-      break;
+        // tidak ada pesan
+        break;
   }
+}
+
+void RequestHomePos() {
+    mavlink_message_t msg; 
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+    
+    //pack messagenya, masukin ke buffer, lalu tulis:
+    mavlink_msg_command_long_pack(
+        system_id,          //system id
+        system_component_id,//componen id
+        &msg,               //message container
+        ap_id,              //target_system
+        ap_component_id,    //target_component
+        MAV_CMD_GET_HOME_POSITION,   //command   //command ID nya, ref: MAV_CMD
+        0,  //confirmation
+        0,  //param1
+        0,  //param2
+        0,  //param3
+        0,  //param4
+        0,  //param5
+        0,  //param6
+        0   //param7
+    );
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    MAVSerial.write(buf, len);
+}
+
+void SendHeartbeat() {
+    mavlink_message_t msg; 
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+
+    //pack messagenya, masukin ke buffer, lalu tulis:
+    mavlink_msg_heartbeat_pack(
+        system_id,              //system id
+        system_component_id,           //component id
+        &msg,                   //message container
+        system_type,            //type
+        system_autopilot,       //autopilot
+        system_base_mode,       //base_mode
+        system_custom_mode,     //custom_mode
+        system_system_status    //system_status
+    );
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);    
+    MAVSerial.write(buf, len);
 }

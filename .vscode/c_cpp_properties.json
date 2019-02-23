@@ -10,6 +10,16 @@
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c11",
             "cppStandard": "c++17"
+        },
+        {
+            "name": "Win32",
+            "includePath": [
+                "D:\\Google Drive\\Electronics and Automation\\Arduino\\tools\\**",
+                "D:\\Google Drive\\Electronics and Automation\\Arduino\\hardware\\Arduino_STM32\\STM32F1\\**",
+                "C:\\Users\\ASUS\\AppData\\Local\\Arduino15\\packages\\esp8266\\tools\\**",
+                "C:\\Users\\ASUS\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\2.4.2\\**"
+            ],
+            "forcedInclude": []
         }
     ],
     "version": 4
